@@ -1,6 +1,6 @@
 # mlx-dllm
 
-MLX (Apple Silicon) inference runtime for masked-diffusion language-model checkpoints produced by [a2d](https://github.com/undeemed/a2d).
+MLX (Apple Silicon) inference runtime for masked-diffusion language-model checkpoints produced by [a2d](https://github.com/undeemed/a2d), plus a native reference decoder for Qwen/Dream-family diffusion models.
 
 a2d converts autoregressive checkpoints (GPT-2 today) into masked-diffusion models (MDLM).
 The saved artifact is a standard Hugging Face triple (`config.json` + tokenizer + `model.safetensors`) plus an `"a2d"` block in `config.json`.
