@@ -29,4 +29,8 @@ format bridge remain follow-on PRs.
 
 - Bidirectional attention is a decode-time policy, NOT in a2d weights/config; a stock causal loader runs a2d checkpoints causally and produces garbage for diffusion. The `a2d` block in config.json (objective / mask_token_id / final_alpha / sampler) is the only marker; `runtime._parse_a2d` tolerates future extra keys.
 - Diffusion decode never uses a KV cache (`cache=None`); mlx-lm samplers/tokenizer remain reusable for the future denoise loop.
-- The Qwen reference denoiser is greedy, batch-one, fixed-canvas, confidence-ranked, and never remasks. It suppresses the mask token from output logits so every scheduled reveal makes progress. Dual-cache/confident-parallel acceleration and a2d sampler/config integration are intentionally absent.
+- The Qwen reference denoiser is greedy, batch-one, fixed-canvas, confidence-ranked, and never remasks. It suppresses the mask token from output logits so every scheduled reveal makes progress. Schedule steps that reveal nothing skip the forward pass entirely. Dual-cache/confident-parallel acceleration and a2d sampler/config integration are intentionally absent.
+- **Prediction-position convention is in-place by default** (token for position i read from logits at i) because this runtime targets a2d-converted checkpoints and a2d conversion drops the autoregressive next-token shift.
+Published Dream-family checkpoints keep the next-token head (token for position i comes from logits at i-1); `denoise`/`generate` take `logit_shift=True` for those, which requires an unmasked first canvas position.
+Do not feed a published Dream checkpoint through the default in-place path - it will silently garble output.
+- `generate` returns only the decoded continuation; the prompt text is never included.

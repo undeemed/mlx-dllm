@@ -115,31 +115,71 @@ def test_native_denoise_smoke(loaded):
     )
     assert isinstance(text, str)
     assert text
+    assert text == tokenizer.decode(output[0].tolist()[len(prompt_ids) :])
 
 
-def test_denoise_reveals_highest_confidence_and_freezes(monkeypatch):
-    from mlx_dllm import diffusion
+class _FakeArgs:
+    vocab_size = 6
 
-    calls = []
 
-    def fake_forward(model, canvas):
+class _FakeModel:
+    args = _FakeArgs()
+
+
+def _fake_forward(calls):
+    def forward(model, canvas):
         calls.append(np.array(canvas))
         logits = np.zeros((*canvas.shape, model.args.vocab_size), dtype=np.float32)
         for position in range(canvas.shape[1]):
             logits[0, position, (position % 4) + 1] = position + 1
         return mx.array(logits)
 
-    class Args:
-        vocab_size = 6
+    return forward
 
-    class Model:
-        args = Args()
 
-    monkeypatch.setattr(diffusion, "bidirectional_forward", fake_forward)
+def test_denoise_reveals_highest_confidence_and_freezes(monkeypatch):
+    from mlx_dllm import diffusion
+
+    calls = []
+    monkeypatch.setattr(diffusion, "bidirectional_forward", _fake_forward(calls))
     output = diffusion.denoise(
-        Model(), mx.array([[0, 5, 5, 5, 5]]), mask_token_id=5, steps=2
+        _FakeModel(), mx.array([[0, 5, 5, 5, 5]]), mask_token_id=5, steps=2
     )
 
     assert len(calls) == 2
     assert calls[1].tolist() == [[0, 5, 5, 4, 1]]
     assert output.tolist() == [[0, 2, 3, 4, 1]]
+
+
+def test_denoise_skips_forward_on_zero_reveal_steps(monkeypatch):
+    from mlx_dllm import diffusion
+
+    calls = []
+    monkeypatch.setattr(diffusion, "bidirectional_forward", _fake_forward(calls))
+    output = diffusion.denoise(
+        _FakeModel(), mx.array([[0, 5, 5, 5, 5]]), mask_token_id=5, steps=8
+    )
+
+    assert len(calls) == 4
+    assert 5 not in output[0].tolist()
+
+
+def test_denoise_logit_shift_reads_previous_position(monkeypatch):
+    from mlx_dllm import diffusion
+
+    def fake_forward(model, canvas):
+        logits = np.zeros((*canvas.shape, model.args.vocab_size), dtype=np.float32)
+        for position in range(canvas.shape[1]):
+            logits[0, position, position + 1] = 3.0
+        return mx.array(logits)
+
+    monkeypatch.setattr(diffusion, "bidirectional_forward", fake_forward)
+    output = diffusion.denoise(
+        _FakeModel(), mx.array([[0, 5, 5]]), mask_token_id=5, steps=1, logit_shift=True
+    )
+    assert output.tolist() == [[0, 1, 2]]
+
+    with pytest.raises(ValueError, match="unmasked first"):
+        diffusion.denoise(
+            _FakeModel(), mx.array([[5, 0]]), mask_token_id=5, steps=1, logit_shift=True
+        )

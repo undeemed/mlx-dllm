@@ -14,6 +14,7 @@ def denoise(
     *,
     mask_token_id: int,
     steps: int,
+    logit_shift: bool = False,
 ) -> mx.array:
     """Greedily reveal a masked, fixed-length canvas over ``steps`` passes.
 
@@ -21,6 +22,14 @@ def denoise(
     every position with bidirectional attention and no KV cache. Revealed
     tokens remain fixed; the highest-confidence masked positions are revealed
     according to a linear cumulative schedule.
+
+    By default the prediction for position ``i`` is read from the logits at
+    position ``i`` (in-place). This is the a2d convention: a2d conversion
+    drops the autoregressive next-token shift, so a2d-converted checkpoints
+    predict each masked position at its own logit row. Published Dream-family
+    checkpoints keep the next-token head instead, reading the token for
+    position ``i`` from the logits at ``i - 1``; pass ``logit_shift=True``
+    for those, which requires an unmasked first canvas position.
 
     The reference path currently accepts one sequence at a time. Batched
     scheduling can be added when there is a concrete caller for it.
@@ -31,6 +40,8 @@ def denoise(
         raise ValueError("steps must be positive")
     if not 0 <= mask_token_id < model.args.vocab_size:
         raise ValueError("mask_token_id must be inside the model vocabulary")
+    if logit_shift and bool((canvas[0, 0] == mask_token_id).item()):
+        raise ValueError("logit_shift requires an unmasked first canvas position")
 
     masked_count = int(mx.sum(canvas == mask_token_id).item())
     if masked_count == 0:
@@ -41,16 +52,18 @@ def denoise(
     vocabulary = mx.arange(model.args.vocab_size)
 
     for step in range(steps):
-        logits = bidirectional_forward(model, canvas)
-        # A mask is an input sentinel, never a valid revealed output token.
-        logits = mx.where(vocabulary == mask_token_id, -mx.inf, logits)
-        predictions = mx.argmax(logits, axis=-1)
-        confidence = mx.max(mx.softmax(logits, axis=-1), axis=-1)
-
         reveal_total = round((step + 1) * masked_count / steps)
         reveal_count = reveal_total - revealed
         if reveal_count == 0:
             continue
+
+        logits = bidirectional_forward(model, canvas)
+        if logit_shift:
+            logits = mx.concatenate([logits[:, :1], logits[:, :-1]], axis=1)
+        # A mask is an input sentinel, never a valid revealed output token.
+        logits = mx.where(vocabulary == mask_token_id, -mx.inf, logits)
+        predictions = mx.argmax(logits, axis=-1)
+        confidence = mx.max(mx.softmax(logits, axis=-1), axis=-1)
 
         still_masked = canvas == mask_token_id
         scores = mx.where(still_masked, confidence, -mx.inf)
@@ -73,8 +86,10 @@ def generate(
     max_new_tokens: int,
     mask_token_id: int,
     steps: int | None = None,
+    logit_shift: bool = False,
 ) -> str:
-    """Append a masked canvas to ``prompt``, denoise it, and decode the text."""
+    """Append a masked canvas to ``prompt``, denoise it, and decode only the
+    continuation (the prompt text is not included in the return value)."""
     if max_new_tokens <= 0:
         raise ValueError("max_new_tokens must be positive")
 
@@ -85,5 +100,6 @@ def generate(
         canvas,
         mask_token_id=mask_token_id,
         steps=max_new_tokens if steps is None else steps,
+        logit_shift=logit_shift,
     )
-    return tokenizer.decode(output[0].tolist())
+    return tokenizer.decode(output[0].tolist()[len(prompt_ids) :])
