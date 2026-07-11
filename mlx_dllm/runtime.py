@@ -94,12 +94,14 @@ def load(path_or_repo: str):
 
 @contextmanager
 def _no_causal_mask(model: nn.Module):
-    """Scoped monkeypatch: the model's mlx-lm module builds no attention mask.
+    """Scoped monkeypatch: the model's defining module builds no attention mask.
 
     mlx-lm model ``__call__``s hardcode ``mask = create_attention_mask(...)``
     (-> "causal"); rebinding that name in the model's own module for the
     duration of the call makes SDPA run with ``mask=None``, i.e. fully
-    bidirectional. Mirrors a2d's decode-time patch of HF's eager seam
+    bidirectional. Fast-dLLM-mlx's Dream models import the same name into
+    their own modules, so ``mlx_dllm.dream`` reuses this seam for the
+    Qwen/Dream path. Mirrors a2d's decode-time patch of HF's eager seam
     (a2d transform/attention.py).
     """
     mod = sys.modules[type(model).__module__]
