@@ -76,11 +76,17 @@ def _assert_parity(loaded, ref_model, device, tolerance):
     mx.set_default_device(device)
     try:
         for ids in _probes(tokenizer, ref_model.config.vocab_size):
-            mlx_logits = np.array(mlx_dllm.bidirectional_forward(model, mx.array([ids])))
+            mlx_logits = np.array(
+                mlx_dllm.bidirectional_forward(model, mx.array([ids]))
+            )
             with torch.no_grad():
                 ref_logits = ref_model(torch.tensor([ids])).logits.numpy()
             # All-position logits, not last-position-only.
-            assert mlx_logits.shape == ref_logits.shape == (1, len(ids), ref_model.config.vocab_size)
+            assert (
+                mlx_logits.shape
+                == ref_logits.shape
+                == (1, len(ids), ref_model.config.vocab_size)
+            )
             diff = float(np.abs(mlx_logits - ref_logits).max())
             assert diff < tolerance, f"max |mlx - torch| = {diff} >= {tolerance}"
     finally:

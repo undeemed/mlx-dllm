@@ -1,7 +1,6 @@
 """Loader contract: a2d checkpoints (HF triple + "a2d" config block) load as-is."""
 
 import json
-import shutil
 
 import mlx.core as mx
 import pytest
@@ -47,7 +46,9 @@ def test_load_a2d_checkpoint(a2d_checkpoint):
         sampler={"canvas_len": 128, "num_steps": 128, "temperature": 1.0},
     )
     # the extra config key is ignored by mlx-lm and the model still runs
-    logits = mlx_dllm.bidirectional_forward(model, mx.array([tokenizer.encode("hi there")]))
+    logits = mlx_dllm.bidirectional_forward(
+        model, mx.array([tokenizer.encode("hi there")])
+    )
     assert logits.shape[1] == 2
 
 
