@@ -1,4 +1,4 @@
-"""Load a2d masked-diffusion checkpoints and run bidirectional forwards on MLX.
+"""Load GPT-2/Qwen2 checkpoints and run bidirectional forwards on MLX.
 
 a2d checkpoints are standard HF triples (config.json + tokenizer +
 model.safetensors) whose only non-standard bytes are an "a2d" block inside
@@ -78,12 +78,14 @@ def _model_classes(config: dict):
 
 
 def load(path_or_repo: str):
-    """Load an HF-layout GPT-2 checkpoint via mlx-lm (unmodified, as a library).
+    """Load an HF-layout GPT-2 or Qwen2 checkpoint through stock mlx-lm.
 
     Returns ``(model, tokenizer, a2d)`` where ``a2d`` is the parsed
     :class:`A2DConfig` when the checkpoint carries a2d's config block, else
     ``None``. mlx-lm's config parsing ignores the extra "a2d" key, so both
-    a2d-converted and stock GPT-2 checkpoints load as-is.
+    a2d-converted GPT-2 and stock GPT-2/Qwen2 checkpoints load as-is. Qwen2
+    resolves directly to mlx-lm's own ``qwen2.Model``; no transformer code is
+    reimplemented here.
     """
     model_path = _download(path_or_repo)
     model, config = load_model(model_path, get_model_classes=_model_classes)

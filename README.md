@@ -8,11 +8,17 @@ Bidirectional attention is a decode-time policy, not baked into the weights - th
 
 ## What exists today
 
-- `mlx_dllm.load(path_or_repo)` - loads any GPT-2 HF-layout checkpoint via `mlx_lm` (unmodified, as a library) and returns the parsed `a2d` config block when present.
+- `mlx_dllm.load(path_or_repo)` - loads GPT-2 and Qwen2-family HF checkpoints via `mlx_lm` (unmodified, as a library) and returns the parsed `a2d` config block when present.
 - `mlx_dllm.bidirectional_forward(model, input_ids)` - a full non-causal forward pass (no KV cache) returning logits for **all** positions, matching a2d's `alpha=1` decode configuration.
-- A numerical parity gate (`tests/test_parity.py`) proving the MLX bidirectional forward matches a PyTorch/HF eager bidirectional reference.
+- `mlx_dllm.denoise(model, canvas, mask_token_id=..., steps=...)` - the native Qwen/Dream correctness path: full bidirectional recomputation, greedy per-position predictions, and linearly scheduled confidence-ranked reveals with no KV cache or remasking.
+- `mlx_dllm.generate(...)` - creates and decodes a fixed masked continuation canvas using that reference path.
+- Numerical parity gates prove the GPT-2 and Qwen2 MLX forwards match PyTorch/HF eager bidirectional references. The Qwen test uses a two-layer ~5 MB fixture; full-size Dream validation is deliberately deferred to separate hardware.
 
-The iterative denoise loop and CLI are follow-on work.
+Acceleration (dual cache / confident-parallel decoding), an a2d-format bridge for Qwen, and a CLI are follow-on work.
+
+## Prior art
+
+The Qwen/Dream diffusion techniques were informed by [Fast-dLLM-mlx](https://github.com/MacPaw/Fast-dLLM-mlx) by MacPaw (Apache-2.0) and the original [NVLabs/Fast-dLLM](https://github.com/NVlabs/Fast-dLLM). They are reimplemented independently here: no Fast-dLLM-mlx code is copied, vendored, forked, imported, or added as a dependency. This implementation stays lean by reusing mlx-lm's own Qwen2 transformer and adding only the diffusion decoding layer.
 
 ## Install
 
