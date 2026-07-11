@@ -1,0 +1,33 @@
+[project]
+name = "mlx-dllm"
+version = "0.1.0"
+description = "MLX (Apple Silicon) inference runtime for a2d masked-diffusion language-model checkpoints"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "mlx>=0.32",
+    # runtime.py reaches into mlx-lm private internals (_download, _get_classes)
+    # and the gpt2 module's create_attention_mask binding; keep to 0.31.x.
+    "mlx-lm>=0.31,<0.32",
+    # mlx-lm 0.31.x requires transformers>=5 but crashes on import with 5.13+
+    # (AutoTokenizer.register signature change).
+    "transformers>=5.0,<5.13",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "torch>=2.4",
+    # The parity reference neutralizes GPT2Attention.bias and the model-level
+    # create_causal_mask - seams verified against transformers 5.0.x.
+    "transformers~=5.0.0",
+    "numpy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mlx_dllm"]
