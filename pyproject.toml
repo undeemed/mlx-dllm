@@ -1,7 +1,7 @@
 [project]
 name = "mlx-dllm"
 version = "0.1.0"
-description = "MLX (Apple Silicon) inference runtime for a2d masked-diffusion language-model checkpoints"
+description = "MLX (Apple Silicon) inference runtime for a2d masked-diffusion checkpoints and Qwen/Dream-family diffusion models"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -19,8 +19,8 @@ dependencies = [
 test = [
     "pytest>=8",
     "torch>=2.4",
-    # The parity reference neutralizes GPT2Attention.bias and the model-level
-    # create_causal_mask - seams verified against transformers 5.0.x.
+    # The parity references neutralize the GPT-2 attention/model mask seams
+    # and Qwen2's model-level create_causal_mask seam, verified on 5.0.x.
     "transformers~=5.0.0",
     "numpy",
 ]
