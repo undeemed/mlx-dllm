@@ -56,8 +56,12 @@ def ref_model():
     for m in model.modules():
         if isinstance(m, modeling_gpt2.GPT2Attention):
             m.bias.fill_(True)
+    orig = modeling_gpt2.create_causal_mask
     modeling_gpt2.create_causal_mask = lambda *args, **kwargs: None
-    return model
+    try:
+        yield model
+    finally:
+        modeling_gpt2.create_causal_mask = orig
 
 
 def _probes(tokenizer, vocab_size):

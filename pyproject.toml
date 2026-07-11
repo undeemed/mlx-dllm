@@ -7,7 +7,9 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "mlx>=0.32",
-    "mlx-lm>=0.31",
+    # runtime.py reaches into mlx-lm private internals (_download, _get_classes)
+    # and the gpt2 module's create_attention_mask binding; keep to 0.31.x.
+    "mlx-lm>=0.31,<0.32",
     # mlx-lm 0.31.x requires transformers>=5 but crashes on import with 5.13+
     # (AutoTokenizer.register signature change).
     "transformers>=5.0,<5.13",

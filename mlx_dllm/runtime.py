@@ -18,7 +18,7 @@ import mlx.nn as nn
 
 # _download/_get_classes are the guts of mlx_lm.utils.load, which offers no
 # public seam to hook sanitize; we mirror its 4-line body instead (mlx-lm
-# pinned >=0.31 in pyproject).
+# pinned >=0.31,<0.32 in pyproject).
 from mlx_lm.utils import _download, _get_classes, load_model, load_tokenizer
 
 
@@ -59,11 +59,16 @@ def _model_classes(config: dict):
         """
 
         def sanitize(self, weights):
-            weights = {
-                k.removeprefix("transformer."): v
-                for k, v in weights.items()
-                if k != "lm_head.weight"  # tied to wte
-            }
+            lm_head = weights.pop("lm_head.weight", None)
+            weights = {k.removeprefix("transformer."): v for k, v in weights.items()}
+            if lm_head is not None:
+                wte = weights.get("wte.weight")
+                if wte is None or not mx.array_equal(lm_head, wte):
+                    raise ValueError(
+                        "checkpoint has an untied lm_head.weight; mlx-lm's gpt2 "
+                        "ties the output head to wte, so loading it would "
+                        "silently produce wrong logits"
+                    )
             return super().sanitize(weights)
 
     # Keep the class looking like mlx_lm.models.gpt2.Model so the
