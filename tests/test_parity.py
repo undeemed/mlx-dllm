@@ -43,9 +43,11 @@ def loaded():
 def ref_model():
     """HF GPT-2 in a2d's alpha=1 decode configuration: fully bidirectional.
 
-    transformers 5.x bakes causality into two seams; neutralize both:
-    the per-layer causal ``bias`` buffer (torch.where inside eager attention)
-    and the model-level ``create_causal_mask`` additive mask.
+    In transformers 5.12.x eager attention applies only the model-level
+    ``create_causal_mask`` additive mask, so that is the one seam to
+    neutralize. Earlier 5.x (verified on 5.0) also kept a per-layer causal
+    ``bias`` buffer inside eager attention; the guarded fill covers those
+    versions within the ``>=5.5.4,<5.13`` test pin.
     """
     from transformers import GPT2LMHeadModel
     from transformers.models.gpt2 import modeling_gpt2
@@ -54,7 +56,7 @@ def ref_model():
         MODEL, attn_implementation="eager", dtype=torch.float32
     ).eval()
     for m in model.modules():
-        if isinstance(m, modeling_gpt2.GPT2Attention):
+        if isinstance(m, modeling_gpt2.GPT2Attention) and hasattr(m, "bias"):
             m.bias.fill_(True)
     orig = modeling_gpt2.create_causal_mask
     modeling_gpt2.create_causal_mask = lambda *args, **kwargs: None
