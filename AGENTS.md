@@ -45,6 +45,8 @@ To add a family, create one module `mlx_dllm/families/<model_type>.py` that buil
 - `model_type` - the `config["model_type"]` string it handles.
 - `sanitize_wrapper` - OPTIONAL factory `(model_class) -> subclass` that overrides `sanitize` when the family's on-disk weight layout differs from what its mlx-lm module expects (gpt2 needs one; qwen2 registers `None`). A family that loads cleanly through stock mlx-lm registers `sanitize_wrapper=None`, or need not register at all - an unregistered `model_type` also falls through to stock mlx-lm.
 
+Family modules are auto-imported while `mlx_dllm` is still initializing: no top-level imports from `mlx_dllm`/`mlx_dllm.runtime` (partially-initialized ImportError), and an import-time exception in any family module breaks `import mlx_dllm` for everyone - full constraints in `mlx_dllm/families/__init__.py`.
+
 The `Model.__module__` pin the mask seam depends on is applied by `_model_classes` for any wrapped class, so adapters never manage it. See `mlx_dllm/families/__init__.py` (contract + worked example), `families/gpt2.py` (wrapper), and `families/qwen2.py` (no-op). OUT OF SCOPE for the registry: the denoise loop, acceleration, and the a2d-format bridge.
 
 ## Maintaining this file

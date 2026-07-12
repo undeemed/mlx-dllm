@@ -30,6 +30,15 @@ A family that loads cleanly through stock mlx-lm registers with
 ``sanitize_wrapper=None`` (see ``qwen2``) - or need not register at all; an
 unregistered ``model_type`` falls through to stock mlx-lm unchanged.
 
+Import constraints: family modules are auto-imported at package import time,
+while ``mlx_dllm`` (and ``mlx_dllm.runtime``) are still initializing. Do NOT
+import from ``mlx_dllm`` or ``mlx_dllm.runtime`` at module top level - that
+raises a partially-initialized-module ImportError. Import only ``mlx.core``/
+``mlx.nn``, the stdlib, and ``mlx_dllm.families`` itself; defer any runtime
+import into a function body if one is ever needed. An uncaught exception in
+any family module makes ``import mlx_dllm`` fail for everyone, so keep these
+modules import-light and side-effect-free apart from the ``register`` call.
+
 What an adapter supplies
 ------------------------
 * ``model_type`` - the ``config["model_type"]`` string this adapter handles.
