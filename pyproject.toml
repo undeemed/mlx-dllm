@@ -5,8 +5,18 @@ description = "MLX (Apple Silicon) inference runtime for a2d masked-diffusion ch
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
+# mlx ships the Python bindings (mlx.core/mlx.nn) on every platform but NOT the
+# native runtime library. On Darwin the mlx wheel auto-pulls the Metal backend
+# (mlx-metal); on Linux the plain mlx wheel's libmlx.so is a Metal-only stub
+# that fails to load ("libmlx.so: cannot open shared object file"), and mlx-lm
+# only depends on mlx under Darwin, so nothing supplies a working backend here.
+# The mlx[cpu] extra pulls mlx-cpu (the CPU libmlx.so) exact-version-pinned to
+# the mlx frontend, giving an ABI-matched CPU build. Note mlx-cpu ALONE is not
+# enough - it ships only libmlx.so, not the mlx.core bindings - so we still need
+# the mlx frontend, hence mlx[cpu] rather than bare mlx-cpu on Linux.
 dependencies = [
-    "mlx>=0.32",
+    "mlx[cpu]>=0.32; sys_platform == 'linux'",
+    "mlx>=0.32; sys_platform != 'linux'",
     # runtime.py reaches into mlx-lm private internals (_download, _get_classes)
     # and the gpt2 module's create_attention_mask binding; keep to 0.31.x.
     "mlx-lm>=0.31,<0.32",
