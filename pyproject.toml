@@ -29,8 +29,9 @@ dependencies = [
 test = [
     "pytest>=8",
     "torch>=2.4",
-    # The parity references neutralize the GPT-2 attention/model mask seams
-    # and the Qwen2/Gemma model-level create_causal_mask seams, verified on 5.0.x.
+    # The parity references neutralize the GPT-2 attention/model mask seams,
+    # the Qwen2/Gemma model-level create_causal_mask seams, and Gemma 3's
+    # create_causal_mask + create_sliding_window_causal_mask pair, verified on 5.0.x.
     "transformers~=5.0.0",
     "numpy",
 ]

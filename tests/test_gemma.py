@@ -4,7 +4,8 @@ The checkpoint is a random-weight, two-layer Gemma fixture (~10 MB), not a
 full-size Gemma model. Its architecture (model_type="gemma", GemmaForCausalLM,
 4 heads / 2 KV heads GQA, tied lm_head) exercises the same mlx-lm Gemma path
 without putting heavy-model inference on a developer laptop. Scope is Gemma v1
-only; gemma2/gemma3 (sliding-window attention) are out of scope.
+only; Gemma 3 (text) has its own adapter and gate (tests/test_gemma3.py), and
+gemma2 (sliding-window attention) is out of scope.
 
 Tolerances (fp32, measured 2026-07-13 on aarch64 Linux CPU; mlx 0.32.0 /
 mlx-lm 0.31.3 / torch 2.13.0 / transformers 5.0.0; reference logits have
