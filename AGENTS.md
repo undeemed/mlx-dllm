@@ -13,8 +13,9 @@ format bridge remain follow-on PRs.
 
 ## Build / test
 
-- `uv venv && uv pip install -e ".[test]"` then `pytest` (needs network once to fetch distilgpt2 and the tiny Qwen2 fixture; ~5s after caching).
+- `uv venv && uv pip install -e ".[test]"` then `pytest` (needs network once to fetch distilgpt2 and the tiny Qwen2/Gemma fixtures; ~9s after caching).
 - Use `distilbert/distilgpt2` (canonical id) in code and tests - the bare `distilgpt2` alias 404s on the HF xet download path.
+- **Torch is CPU-only on Linux via a uv source override.** The default PyPI torch wheel is a CUDA build (hundreds of MB of unusable GPU libs on a CUDA-less/Metal-less Linux box); `pyproject.toml`'s `[[tool.uv.index]] pytorch-cpu` + `[tool.uv.sources] torch` marker (`sys_platform == 'linux'`) makes fresh uv resolution pick `torch==<pin>+cpu` on Linux while macOS keeps the default MPS-capable wheel. It changes the source, never the version pin. For a manual install use `uv pip install torch --index-url https://download.pytorch.org/whl/cpu`.
 - **Linux is CPU-only and needs the right mlx backend.** The `mlx` wheel ships only the Python bindings; its bundled `libmlx.so` is a Metal stub that fails to import on Linux (`libmlx.so: cannot open shared object file`), and mlx-lm depends on `mlx` only under Darwin. `pyproject.toml` therefore pulls `mlx[cpu]` on Linux (the `cpu` extra adds the ABI-matched `mlx-cpu` backend) and plain `mlx` elsewhere (Darwin auto-adds `mlx-metal`). Bare `mlx-cpu` is NOT enough - it has the backend lib but no `mlx.core` bindings. On Linux the two Metal-gated parity tests skip (`mx.metal.is_available()` is False); CPU parity gates still run and must stay green.
 
 ## Sharp edges (all bitten once)
@@ -25,6 +26,7 @@ format bridge remain follow-on PRs.
 - **transformers 5.x GPT-2 has TWO causality seams**: the per-layer `bias` buffer inside eager attention AND a model-level `create_causal_mask`. A bidirectional torch reference must neutralize both (see `ref_model` fixture).
 - **transformers 5.0 Qwen2 has one causality seam for eager attention:** the model-level `create_causal_mask`. mlx-lm Qwen2 uses the same module-local `create_attention_mask` seam as GPT-2, so `_no_causal_mask` works for both without wrapping or reimplementing the transformer.
 - **The native Qwen parity fixture is intentionally tiny.** `trl-internal-testing/tiny-Qwen2ForCausalLM-2.5` is a two-layer, hidden-size-8 Qwen2 model (~5 MB). Its weights are bf16; cast both MLX and HF loads to fp32 before measuring framework parity. Its parity gate (tests/test_qwen.py) asserts 1e-6 on CPU and 2e-3 on GPU; measured values live in that file's docstring. Full-size Dream runs belong on a mini.
+- **Gemma parity is gelu-limited, not fp32-limited.** mlx-lm's `gemma` module hardcodes the exact (erf) `nn.gelu`, but published Gemma configs (and the tiny fixture `trl-internal-testing/tiny-GemmaForCausalLM`) set `hidden_act="gelu_pytorch_tanh"`, which HF-eager honors. So bidirectional CPU parity vs HF is ~2.85e-5 (dominated by that activation gap; forcing HF to exact gelu collapses it to ~8e-8), NOT qwen2's ~1e-6. The gemma gate (tests/test_gemma.py) is therefore 1e-4 CPU / 2e-3 GPU, still 290x below the 2.9e-2 causal-regression signal. This is stock mlx-lm behavior (never forked); immaterial for greedy argmax denoise. Gemma **v1 only** (`model_type="gemma"`); gemma2/gemma3 use sliding-window attention (their mlx-lm modules call `create_attention_mask(..., return_array=True)`, a different seam) and are out of scope.
 
 ## Contract notes
 

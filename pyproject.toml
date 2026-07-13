@@ -35,6 +35,20 @@ test = [
     "numpy",
 ]
 
+# The default torch wheel on PyPI is a CUDA build; on a Linux box with neither
+# CUDA nor Metal (e.g. aarch64 CI/dev containers) that pulls hundreds of MB of
+# unusable GPU libs. Point uv at PyTorch's CPU-only index on Linux so resolution
+# picks the CPU wheel; macOS keeps its default (MPS-capable) torch from PyPI.
+# This is a source override only - it does not change the torch version pin.
+# Analogous in spirit to the mlx[cpu] Linux marker above.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
