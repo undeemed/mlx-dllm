@@ -8,13 +8,14 @@ Bidirectional attention is a decode-time policy, not baked into the weights - th
 
 ## What exists today
 
-- `mlx_dllm.load(path_or_repo)` - loads GPT-2 and Qwen2-family HF checkpoints via `mlx_lm` (unmodified, as a library) and returns the parsed `a2d` config block when present.
+- `mlx_dllm.load(path_or_repo)` - loads GPT-2, Qwen2, and Gemma (v1) family HF checkpoints via `mlx_lm` (unmodified, as a library) and returns the parsed `a2d` config block when present.
 Per-family loading policy lives in the `mlx_dllm/families/` adapter registry: a new model family is one new module with a `register(...)` call, no edits to shared dispatch (contract and worked example in `mlx_dllm/families/__init__.py`).
 - `mlx_dllm.bidirectional_forward(model, input_ids)` - a full non-causal forward pass (no KV cache) returning logits for **all** positions, matching a2d's `alpha=1` decode configuration.
 - `mlx_dllm.denoise(model, canvas, mask_token_id=..., steps=...)` - the native Qwen/Dream correctness path: full bidirectional recomputation, greedy per-position predictions, and linearly scheduled confidence-ranked reveals with no KV cache or remasking.
 Predictions are read in-place (token for position `i` from logits at `i`), the a2d convention since a2d conversion drops the autoregressive next-token shift; pass `logit_shift=True` for published Dream checkpoints that keep the next-token head (token for position `i` from logits at `i - 1`).
 - `mlx_dllm.generate(...)` - creates a fixed masked continuation canvas, denoises it with that reference path, and returns only the decoded continuation (prompt text excluded).
-- Numerical parity gates prove the GPT-2 and Qwen2 MLX forwards match PyTorch/HF eager bidirectional references. The Qwen test uses a two-layer ~5 MB fixture; full-size Dream validation is deliberately deferred to separate hardware.
+- Numerical parity gates prove the GPT-2, Qwen2, and Gemma MLX forwards match PyTorch/HF eager bidirectional references.
+The Qwen and Gemma tests use tiny two-layer fixtures; full-size Dream validation is deliberately deferred to separate hardware.
 
 Acceleration (dual cache / confident-parallel decoding), an a2d-format bridge for Qwen, and a CLI are follow-on work.
 
