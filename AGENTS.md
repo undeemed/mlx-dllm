@@ -54,7 +54,7 @@ To add a family, create one module `mlx_dllm/families/<model_type>.py` that buil
 
 Family modules are auto-imported while `mlx_dllm` is still initializing: no top-level imports from `mlx_dllm`/`mlx_dllm.runtime` (partially-initialized ImportError), and an import-time exception in any family module breaks `import mlx_dllm` for everyone - full constraints in `mlx_dllm/families/__init__.py`.
 
-The `Model.__module__` pin the mask seam depends on is applied by `_model_classes` for any wrapped class, so adapters never manage it. See `mlx_dllm/families/__init__.py` (contract + worked example), `families/gpt2.py` (wrapper), and `families/qwen2.py`/`families/gemma.py`/`families/gemma3.py` (no-ops; `gemma3.py`'s docstring explains why sliding-window attention still needs no special seam). OUT OF SCOPE for the registry: the denoise loop, acceleration, and the a2d-format bridge.
+The `Model.__module__` pin the mask seam depends on is applied by `_model_classes` for any wrapped class, so adapters never manage it. See `mlx_dllm/families/__init__.py` (contract + worked example), `families/gpt2.py` (wrapper), and `families/qwen2.py`/`families/gemma.py`/`families/gemma3.py` (no-ops; `gemma3.py`'s docstring explains why sliding-window attention still needs no special seam). OUT OF SCOPE for the registry: the denoise loop, acceleration, and a2d run-dir resolution (model-agnostic, lives in `runtime._resolve_run_dir`, never per-family).
 
 ## Maintaining this file
 

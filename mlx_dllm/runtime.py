@@ -2,7 +2,9 @@
 
 a2d checkpoints are standard HF triples (config.json + tokenizer +
 model.safetensors) whose only non-standard bytes are an "a2d" block inside
-config.json. Bidirectional attention is NOT in the weights or config - it is a
+config.json; a2d also wraps that checkpoint in a run-directory (model/ +
+manifest.json + checkpoints/), and :func:`load` accepts either shape.
+Bidirectional attention is NOT in the weights or config - it is a
 decode-time policy this runtime supplies (a2d's alpha=1 configuration).
 """
 

@@ -119,8 +119,9 @@ def generate(
     mask id from ``a2d.mask_token_id``, and the step count from
     ``a2d.sampler["num_steps"]``. Explicit arguments always take precedence.
     ``a2d.sampler["temperature"]`` is intentionally ignored - the reference
-    decoder is greedy. With no ``a2d`` and no explicit ``steps``, ``steps``
-    defaults to ``max_new_tokens`` (one reveal per position, as before).
+    decoder is greedy. When neither an explicit ``steps`` nor an a2d
+    ``num_steps`` resolves it, ``steps`` defaults to ``max_new_tokens`` (one
+    reveal per position, as before).
     """
     sampler = a2d.sampler if a2d is not None else None
     max_new_tokens = _a2d_default(
