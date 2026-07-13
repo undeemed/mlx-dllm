@@ -21,6 +21,8 @@ import mlx.nn as nn
 # pinned >=0.31,<0.32 in pyproject).
 from mlx_lm.utils import _download, _get_classes, load_model, load_tokenizer
 
+from mlx_dllm.families import get_adapter
+
 
 @dataclass(frozen=True)
 class A2DConfig:
@@ -46,35 +48,25 @@ def _parse_a2d(config: dict) -> Optional[A2DConfig]:
 
 
 def _model_classes(config: dict):
+    """Resolve mlx-lm's (Model, ModelArgs) classes, applying a family adapter.
+
+    Dispatch is family-agnostic: the per-``model_type`` policy lives in the
+    :mod:`mlx_dllm.families` registry, so adding a family is a new adapter
+    registration, never an edit here. An adapter's ``sanitize_wrapper`` (when
+    present) subclasses the stock model to normalize weight keys; families
+    without one (or unregistered ``model_type``s) load through stock mlx-lm.
+    """
     model_class, args_class = _get_classes(config)
-    if config.get("model_type") != "gpt2":
+    adapter = get_adapter(config.get("model_type"))
+    if adapter is None or adapter.sanitize_wrapper is None:
         return model_class, args_class
 
-    class Model(model_class):
-        """GPT-2 with modern-HF weight names normalized to mlx-lm's layout.
-
-        ``save_pretrained`` (what a2d writes; also distilgpt2) prefixes every
-        key with "transformer." and omits the tied "lm_head.weight"; mlx-lm's
-        gpt2 module expects the unprefixed legacy gpt2 layout.
-        """
-
-        def sanitize(self, weights):
-            lm_head = weights.pop("lm_head.weight", None)
-            weights = {k.removeprefix("transformer."): v for k, v in weights.items()}
-            if lm_head is not None:
-                wte = weights.get("wte.weight")
-                if wte is None or not mx.array_equal(lm_head, wte):
-                    raise ValueError(
-                        "checkpoint has an untied lm_head.weight; mlx-lm's gpt2 "
-                        "ties the output head to wte, so loading it would "
-                        "silently produce wrong logits"
-                    )
-            return super().sanitize(weights)
-
-    # Keep the class looking like mlx_lm.models.gpt2.Model so the
-    # create_attention_mask patch below resolves the right module.
-    Model.__module__ = model_class.__module__
-    return Model, args_class
+    wrapped = adapter.sanitize_wrapper(model_class)
+    # Keep the wrapped class in the stock mlx-lm model module so the
+    # _no_causal_mask seam (which rebinds create_attention_mask in
+    # sys.modules[type(model).__module__]) resolves the family's own module.
+    wrapped.__module__ = model_class.__module__
+    return wrapped, args_class
 
 
 def load(path_or_repo: str):
