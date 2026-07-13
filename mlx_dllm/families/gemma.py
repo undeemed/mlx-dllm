@@ -8,10 +8,10 @@ the lm_head tied to ``embed_tokens``. So this family supplies no
 document the "nothing special needed" case through the same mechanism as gpt2's
 wrapper.
 
-Scope: Gemma v1 only (``model_type == "gemma"``). gemma2/gemma3 use sliding-window
-attention and are out of scope; their ``model_type`` values are not "gemma", so
-they simply fall through to stock mlx-lm here and are not bidirectionalized by
-this adapter.
+Scope: Gemma v1 only (``model_type == "gemma"``). Gemma 3 (text) has its own
+no-op adapter (``gemma3.py``, ``model_type == "gemma3_text"``). gemma2 remains
+out of scope; its ``model_type`` is not "gemma", so it simply falls through to
+stock mlx-lm here and is not bidirectionalized by this adapter.
 
 Bidirectional attention needs no weight edit: mlx-lm's ``gemma`` module builds
 its mask through the module-local ``create_attention_mask`` seam (same as gpt2
