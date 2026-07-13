@@ -27,7 +27,7 @@ automatically, and ``runtime._model_classes`` dispatches purely through
     register(FamilyAdapter(model_type="llama", sanitize_wrapper=_wrap))
 
 A family that loads cleanly through stock mlx-lm registers with
-``sanitize_wrapper=None`` (see ``qwen2``) - or need not register at all; an
+``sanitize_wrapper=None`` (see ``qwen2`` or ``gemma``) - or need not register at all; an
 unregistered ``model_type`` falls through to stock mlx-lm unchanged.
 
 Import constraints: family modules are auto-imported at package import time,

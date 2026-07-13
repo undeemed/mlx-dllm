@@ -4,7 +4,7 @@ Qwen2 checkpoints already match the layout mlx-lm's ``qwen2`` module expects, so
 this family supplies no ``sanitize_wrapper``. It is registered explicitly - even
 though an unregistered ``model_type`` would also fall through to stock mlx-lm -
 so the extension point documents the "nothing special needed" case alongside
-gpt2's wrapper, and so the two currently-supported families flow through one
+gpt2's wrapper, and so all currently-supported families flow through one
 mechanism.
 """
 
