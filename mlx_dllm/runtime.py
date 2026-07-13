@@ -84,12 +84,14 @@ def _parse_manifest(manifest_path: Path) -> Optional[dict]:
     Returns the raw JSON object untouched (tolerant of unknown/extra keys and of
     ``model_spec.mask_token_id == null``); the manifest is metadata only and its
     mask id is the PRE-conversion detected value, so it is never consulted for
-    the runtime mask token. Returns ``None`` if the file is absent or unreadable.
+    the runtime mask token. Returns ``None`` if the file is absent, unreadable,
+    or not a JSON object.
     """
     try:
-        return json.loads(manifest_path.read_text())
+        obj = json.loads(manifest_path.read_text())
     except (OSError, ValueError):
         return None
+    return obj if isinstance(obj, dict) else None
 
 
 def _latest_checkpoint(root: Path) -> Optional[Path]:
@@ -105,7 +107,9 @@ def _latest_checkpoint(root: Path) -> Optional[Path]:
     numbered = [
         (int(d.name[len(prefix) :]), d)
         for d in checkpoints.iterdir()
-        if d.is_dir() and d.name.startswith(prefix) and d.name[len(prefix) :].isdigit()
+        if d.is_dir()
+        and d.name.startswith(prefix)
+        and d.name[len(prefix) :].isdecimal()
     ]
     if not numbered:
         return None
@@ -116,14 +120,20 @@ def _resolve_run_dir(path_or_repo: str) -> tuple[Optional[Path], Optional[dict]]
     """Resolve an a2d run-dir root to its consumable checkpoint + manifest.
 
     A local directory is treated as a run-dir when it holds a ``manifest.json``
-    and/or a ``model/`` subdirectory. The consumable checkpoint is ``model/``
-    when present, else the latest ``checkpoints/checkpoint-<N>/`` (numeric max).
-    Anything else - a plain HF checkpoint directory, or a remote/absent repo id -
-    returns ``(None, None)`` so :func:`load` falls through to stock loading.
+    and/or a ``model/`` subdirectory - unless a ``config.json`` sits at its
+    root. A genuine a2d run-dir root never has one (its configs live inside
+    ``model/`` and the checkpoint dirs), so a root ``config.json`` marks a plain
+    HF checkpoint that merely carries a stray manifest or ``model/`` entry. The
+    consumable checkpoint is ``model/`` when present, else the latest
+    ``checkpoints/checkpoint-<N>/`` (numeric max). Anything else - a plain HF
+    checkpoint directory, or a remote/absent repo id - returns ``(None, None)``
+    so :func:`load` falls through to stock loading.
     """
     root = Path(path_or_repo)
     if not root.is_dir():
         return None, None  # remote repo id or a bare file: not a local run-dir
+    if (root / "config.json").is_file():
+        return None, None  # loadable checkpoint at the root: plain HF dir
     manifest_path = root / "manifest.json"
     model_dir = root / "model"
     if not manifest_path.is_file() and not model_dir.is_dir():

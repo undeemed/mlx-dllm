@@ -113,9 +113,27 @@ def test_resolve_plain_hf_dir_is_not_run_dir(tmp_path):
     assert _resolve_run_dir(str(plain)) == (None, None)
 
 
+def test_resolve_plain_hf_dir_with_stray_manifest_falls_through(tmp_path):
+    # A root config.json marks a plain HF checkpoint even when a stray
+    # manifest.json sits next to it (a real run-dir root never has one).
+    plain = tmp_path / "plain"
+    _populate(plain)
+    (plain / "manifest.json").write_text(json.dumps(_make_manifest()))
+    assert _resolve_run_dir(str(plain)) == (None, None)
+
+
 def test_resolve_repo_id_is_not_run_dir():
     # A non-local path (hub repo id) is never a run-dir.
     assert _resolve_run_dir("distilbert/distilgpt2") == (None, None)
+
+
+def test_resolve_skips_non_decimal_checkpoint_names(tmp_path):
+    # Suffixes int() rejects (superscripts, words) are ignored, not a crash.
+    root = _run_dir_checkpoints_only(tmp_path, (1,))
+    (root / "checkpoints" / "checkpoint-²").mkdir()
+    (root / "checkpoints" / "checkpoint-final").mkdir()
+    checkpoint, _ = _resolve_run_dir(str(root))
+    assert checkpoint == root / "checkpoints" / "checkpoint-1"
 
 
 def test_resolve_run_dir_without_model_or_checkpoints_raises(tmp_path):
@@ -136,6 +154,13 @@ def test_manifest_tolerant_of_null_mask_and_extra_keys(tmp_path):
 
 def test_parse_missing_manifest_returns_none(tmp_path):
     assert _parse_manifest(tmp_path / "does-not-exist.json") is None
+
+
+def test_parse_non_dict_manifest_returns_none(tmp_path):
+    # Valid JSON that is not an object violates the provenance-dict contract.
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(["not", "a", "dict"]))
+    assert _parse_manifest(path) is None
 
 
 # --- loading through the run-dir root ---------------------------------------
@@ -180,6 +205,18 @@ def test_load_plain_hf_dir_backward_compat():
     # The vendored dir (no manifest, no model/ subdir) still loads exactly as
     # before: a2d parsed from the config block, no manifest attached.
     _, _, a2d = mlx_dllm.load(str(FIXTURE))
+    assert a2d is not None
+    assert a2d.mask_token_id == MASK_TOKEN_ID
+    assert a2d.manifest is None
+
+
+def test_load_plain_hf_dir_with_stray_manifest(tmp_path):
+    # A stray manifest.json must not reroute a loadable checkpoint through the
+    # run-dir path (which would raise): stock loading, manifest never attached.
+    plain = tmp_path / "plain"
+    _populate(plain)
+    (plain / "manifest.json").write_text(json.dumps(_make_manifest()))
+    _, _, a2d = mlx_dllm.load(str(plain))
     assert a2d is not None
     assert a2d.mask_token_id == MASK_TOKEN_ID
     assert a2d.manifest is None
