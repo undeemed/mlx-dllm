@@ -35,10 +35,14 @@ Import constraints: family modules are auto-imported at package import time,
 while ``mlx_dllm`` (and ``mlx_dllm.runtime``) are still initializing. Do NOT
 import from ``mlx_dllm`` or ``mlx_dllm.runtime`` at module top level - that
 raises a partially-initialized-module ImportError. Import only ``mlx.core``/
-``mlx.nn``, the stdlib, and ``mlx_dllm.families`` itself; defer any runtime
-import into a function body if one is ever needed. An uncaught exception in
-any family module makes ``import mlx_dllm`` fail for everyone, so keep these
-modules import-light and side-effect-free apart from the ``register`` call.
+``mlx.nn``, the stdlib, and ``mlx_dllm.families`` itself. The ``[[layers]]``
+block in ``.sentrux/rules.toml`` enforces that too, and sentrux counts an
+import edge wherever it appears: a runtime import deferred into a function
+body is safe at import time but still fails ``sentrux check .``, so revisit
+that layer block rather than working around it if a family ever needs one.
+An uncaught exception in any family module makes ``import mlx_dllm`` fail for
+everyone, so keep these modules import-light and side-effect-free apart from
+the ``register`` call.
 
 What an adapter supplies
 ------------------------
