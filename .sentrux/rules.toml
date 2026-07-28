@@ -28,7 +28,9 @@ no_god_files = true   # flipped on; 0 god files today, so this locks the split i
 #   trip this rule too. No family defers one today; if one ever must, the layer block
 #   is what to revisit - do not silently drop the family layer.
 # - Only the paths below are guarded. A module in no layer is unguarded, so any future
-#   top-level module (e.g. cli.py) has to be added to one.
+#   top-level module (e.g. cli.py) has to be added to one. The families glob is `**`, not
+#   `*`, because pkgutil.iter_modules auto-imports family SUBPACKAGES too and `*` matches
+#   only the flat files - do not narrow it.
 
 [[layers]]
 name = "diffusion"
@@ -42,5 +44,5 @@ order = 1
 
 [[layers]]
 name = "families"
-paths = ["mlx_dllm/families/*"]
+paths = ["mlx_dllm/families/**"]
 order = 2
