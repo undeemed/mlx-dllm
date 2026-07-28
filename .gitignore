@@ -3,3 +3,5 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 uv.lock
+.sentrux/cache.bin
+.sentrux/churn.bin
