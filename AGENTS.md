@@ -38,7 +38,7 @@ Contract notes). CLI and acceleration remain follow-on PRs.
   `mlx_dllm/__init__.py` is listed in the `diffusion` layer because it re-exports both modules: leaving it unlayered let `from mlx_dllm import load` slip through while only `from mlx_dllm.runtime import load` was caught, verified both ways with a throwaway probe import in `families/qwen2.py`.
 - **What the layer block cannot guard.** It cannot express that `diffusion.py` stays family-agnostic - `runtime.py` genuinely imports `families`, which forces `families` to be the foundation, and any layer may depend on the foundation.
   Sentrux counts an import edge wherever it appears, nesting included, so the function-body-deferred runtime import that `families/__init__.py` sanctions would trip the rule too; no family defers one today, and the layer block is what to revisit if one ever must.
-  Only the listed paths are guarded, so a future unlayered top-level module (a planned `cli.py`) is unconstrained until it joins a layer.
+  Only the listed paths are guarded, so a future unlayered top-level module (a planned `cli.py`) is unconstrained until it joins a layer, and sentrux scans `git ls-files`, so a brand-new family module is unguarded until it is committed or `git add -N`'d (probe: untracked `families/llama_probe.py` importing `runtime` passes, the same file staged fails).
 
 ## Sharp edges (all bitten once)
 
