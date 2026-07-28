@@ -15,10 +15,13 @@ no_god_files = true   # flipped on; 0 god files today, so this locks the split i
 # The guard that matters: family adapters must not import mlx_dllm/mlx_dllm.runtime at
 # module level (they are auto-imported while the package is still initializing, so a
 # back-import raises a partially-initialized ImportError). See mlx_dllm/families/__init__.py.
+# The package root sits in the "diffusion" layer so `from mlx_dllm import ...` is caught as
+# well as `from mlx_dllm.runtime import ...`; a module in no layer is unguarded, so any
+# future top-level module (e.g. cli.py) has to be added to one.
 
 [[layers]]
 name = "diffusion"
-paths = ["mlx_dllm/diffusion.py"]
+paths = ["mlx_dllm/diffusion.py", "mlx_dllm/__init__.py"]
 order = 0
 
 [[layers]]
