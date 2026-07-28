@@ -22,8 +22,16 @@ Contract notes). CLI and acceleration remain follow-on PRs.
 
 ## Architectural gate
 
-- **`sentrux check .` and `sentrux gate .` enforce different things.** `check` applies the caps in `.sentrux/rules.toml` and exits 1 on a violation (or on a malformed rules file). `gate` only diffs the metrics in `.sentrux/baseline.json` (quality, coupling, cycles, god files) and is blind to the caps - `complex_fn_count` stays 0 even when `check` is flagging a function. Both files are committed; re-save with `sentrux gate --save .` only when a structural change is intended. `.sentrux/cache.bin` and `.sentrux/churn.bin` are gitignored, the rest of `.sentrux/` is tracked.
-- **Measured headroom (sentrux 0.5.7):** 0 cycles, 0 god files, and `mlx_dllm/diffusion.py:denoise` is the ceiling on both function metrics at cc=13 and 84 lines. The caps deviate from the fleet template twice: `max_cc = 20` (template 25, a cap this repo could never trip) and `no_god_files = true` (template `false`; already 0, so flipping it locks the current split in). `max_fn_lines` stays at the template's 100 - denoise is at 84, so tightening it would be brittle rather than protective.
+- **`sentrux check .` and `sentrux gate .` enforce different things.**
+  `check` applies the caps in `.sentrux/rules.toml` and exits 1 on a violation (or on a malformed rules file).
+  `gate` ignores the caps and diffs `.sentrux/baseline.json` instead, including `complex_fn_count` - a real baseline field (0 today) that surfaces in gate's failure list rather than its four-line quality/coupling/cycles/god-files summary.
+  Both files are committed; re-save with `sentrux gate --save .` only when a structural change is intended.
+  `.sentrux/cache.bin` and `.sentrux/churn.bin` are gitignored, the rest of `.sentrux/` is tracked.
+- **Measured headroom (sentrux 0.5.7):** 0 cycles, 0 god files, and `mlx_dllm/diffusion.py:denoise` is the ceiling on both function metrics at cc=13 and 84 lines.
+  The operative complexity limit is gate's, not the cap: as observed on 0.5.7 it counts a function complex at cc>=16 (probe: cc=15 leaves gate clean, cc=16 gives `Complex functions increased: 0 -> 1` and exit 1, unchanged with `max_cc = 40`), and `sentrux gate --help` exposes no complexity option, so re-probe rather than trust a number with no knob behind it.
+  That leaves denoise 2 points of headroom, not 7.
+  The caps deviate from the fleet template twice: `max_cc = 20` (template 25) is retained only as a backstop that can fire on nothing which has not already broken the gate - tightening it to 15 would buy cosmetic agreement at the cost of the same brittle 2-point margin `max_fn_lines` was left at 100 to avoid - and `no_god_files = true` (template `false`; already 0, so flipping it locks the current split in).
+  `max_fn_lines` stays at the template's 100 - denoise is at 84, so tightening it would be brittle rather than protective.
 - **The `[[layers]]` block encodes the real import graph** `diffusion(0) -> runtime(1) -> families(2)`, where the higher order is the foundation.
   Its one live guard is that `mlx_dllm/families/**` must not import `runtime`, `diffusion`, or the package root, i.e. the partially-initialized-ImportError rule from "Family adapters" below.
   The glob is recursive on purpose: `_autodiscover` walks `pkgutil.iter_modules`, which yields subpackages too, and a single `*` matched only the flat files - a probe `families/sub/__init__.py` importing `runtime` passed `sentrux check .` under `*` and fails under `**`.
