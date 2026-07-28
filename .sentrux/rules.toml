@@ -16,8 +16,19 @@ no_god_files = true   # flipped on; 0 god files today, so this locks the split i
 # module level (they are auto-imported while the package is still initializing, so a
 # back-import raises a partially-initialized ImportError). See mlx_dllm/families/__init__.py.
 # The package root sits in the "diffusion" layer so `from mlx_dllm import ...` is caught as
-# well as `from mlx_dllm.runtime import ...`; a module in no layer is unguarded, so any
-# future top-level module (e.g. cli.py) has to be added to one.
+# well as `from mlx_dllm.runtime import ...`; it re-exports both modules, so leaving it
+# unlayered would let the short spelling slip past the rule the long one trips.
+#
+# Known limits of this block:
+# - It cannot also express "diffusion.py stays family-agnostic". runtime.py genuinely
+#   imports families, which forces families to be the foundation, and any layer may
+#   depend on the foundation.
+# - Sentrux counts an import edge wherever it appears, nesting included, so the
+#   function-body-deferred runtime import that families/__init__.py sanctions would
+#   trip this rule too. No family defers one today; if one ever must, the layer block
+#   is what to revisit - do not silently drop the family layer.
+# - Only the paths below are guarded. A module in no layer is unguarded, so any future
+#   top-level module (e.g. cli.py) has to be added to one.
 
 [[layers]]
 name = "diffusion"
