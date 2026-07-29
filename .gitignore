@@ -5,3 +5,4 @@ __pycache__/
 uv.lock
 .sentrux/cache.bin
 .sentrux/churn.bin
+core
